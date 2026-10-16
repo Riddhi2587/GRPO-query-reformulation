@@ -1,0 +1,9 @@
+# Reward settings (see rewards/reward.py). L is provisional until Day 2 sets it from zero-shot output lengths.
+dataset: nfcorpus
+split: train
+w: 0.25          # R_cap@100 weight
+lam: 0.0005      # cost per word beyond L
+L: 32            # free length, in whitespace words for now
+mode: blend      # blend | recall | ndcg | replace
+malformed: -0.1
+k: 100

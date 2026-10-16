@@ -1,0 +1,6 @@
+dataset,split,n,zero_result_queries,ndcg10,rcap100,recall100,mrr10
+nfcorpus,dev,324,21,0.2943,0.2333,0.2249,0.4938
+nfcorpus,test,323,15,0.3291,0.2618,0.2483,0.5321
+scifact,test,300,0,0.6839,0.926,0.926,0.6441
+fiqa,dev,500,0,0.2695,0.5475,0.5475,0.3289
+fiqa,test,648,0,0.2526,0.5592,0.5592,0.3103
