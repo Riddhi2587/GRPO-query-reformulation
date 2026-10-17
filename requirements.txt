@@ -140,3 +140,6 @@ webencodings==0.6.1
 websocket-client==1.9.2
 widgetsnbextension==4.0.16
 wrapt==2.5.1
+torch==2.14.1
+sentence-transformers==6.1.0
+transformers==5.20.1

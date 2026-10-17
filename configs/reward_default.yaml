@@ -1,9 +1,11 @@
-# Reward settings (see rewards/reward.py). L is provisional until Day 2 sets it from zero-shot output lengths.
+# Reward settings (see rewards/reward.py): R_cap@100(q x r + e) - lam * max(0, |e| - L), malformed -> -0.1.
+# configs/frozen.yaml (python -m eval.freeze) holds the final values, with L derived from the few-shot outputs.
 dataset: nfcorpus
 split: train
-w: 0.25          # R_cap@100 weight
-lam: 0.0005      # cost per word beyond L
-L: 32            # free length, in whitespace words for now
-mode: blend      # blend | recall | ndcg | replace
+mode: recall      # recall (the reward) | blend (nDCG + w*R_cap) | ndcg | replace -- the last three are Day 5 ablations
+query_repeats: 1  # r: copies of the query written before the expansion
+lam: 0.001        # cost per token beyond L
+L: 26             # free length in Qwen tokens (1.5 x median few-shot expansion length)
+w: 0.25           # R_cap weight, used only by blend / replace
 malformed: -0.1
-k: 100
+k: 100            # retrieval depth

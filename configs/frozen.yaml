@@ -1,0 +1,24 @@
+model: Qwen/Qwen3-1.7B
+dataset: nfcorpus
+prompt_style: keywords_fs
+prompt_sha256: 05eb38114e0fa9b6
+L: 26
+length_unit: qwen_tokens
+max_completion_tokens: 72
+median_expansion_tokens: 17.0
+eval_decoding:
+  policy: greedy
+  temperature: 0.0
+  top_p: 1.0
+  top_k: 0
+  seeds:
+  - 0
+reward:
+  mode: recall
+  lam: 0.001
+  query_repeats: 1
+  malformed: -0.1
+train_sampling:
+  temperature: 1.0
+  G: 8
+  prompts_per_step: 8

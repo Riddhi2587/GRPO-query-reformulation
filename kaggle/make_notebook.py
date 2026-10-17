@@ -10,19 +10,25 @@ md = lambda s: cells.append(nbf.v4.new_markdown_cell(s))
 code = lambda s: cells.append(nbf.v4.new_code_cell(s.strip("\n")))
 
 md("""# Day 2 on Kaggle (T4): zero-shot expansion, decoding policy, reward-variance pilot
-**Before running:** Settings -> Accelerator: GPU T4 x2 (this notebook uses only GPU 0), Internet: On, and attach your *private* dataset containing `grpo_query_code.zip` (built by `kaggle/make_bundle.sh`).
+**Before running:** Settings -> Accelerator: GPU T4 x2 (this notebook uses only GPU 0), Internet: On, and attach your *private* dataset containing the code from `kaggle/make_bundle.sh` (Kaggle may show it as an already-extracted folder tree; both work).
 Each stage writes to `results/day2/` and can be re-run alone. Download `day2_results.zip` from the last cell when done.""")
 
 md("## 0. Setup")
 code('''
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"   # one T4; avoids device_map splitting the model over two GPUs
-import glob, sys, zipfile
-zips = glob.glob("/kaggle/input/*/grpo_query_code.zip")
-assert zips, "attach the private dataset that contains grpo_query_code.zip"
-os.makedirs("/kaggle/working/repo", exist_ok=True)
-zipfile.ZipFile(zips[0]).extractall("/kaggle/working/repo")
+import glob, shutil, sys, zipfile
+# Kaggle usually auto-extracts uploaded zips, so look for the extracted code folder first, then a zip.
+marker = glob.glob("/kaggle/input/**/retrieval/bm25.py", recursive=True)
+zips = glob.glob("/kaggle/input/**/grpo_query_code.zip", recursive=True)
+assert marker or zips, "attach the private dataset that contains the GRPO code (retrieval/, eval/, ...)"
+shutil.rmtree("/kaggle/working/repo", ignore_errors=True)
+if marker:
+    shutil.copytree(os.path.dirname(os.path.dirname(marker[0])), "/kaggle/working/repo")
+else:
+    zipfile.ZipFile(zips[0]).extractall("/kaggle/working/repo")
 os.chdir("/kaggle/working/repo"); sys.path.insert(0, os.getcwd())
+print("code at", os.getcwd(), os.listdir("."))
 ''')
 code('''
 !apt-get install -y -qq default-jdk-headless > /dev/null 2>&1; java -version 2>&1 | head -1
@@ -81,6 +87,14 @@ code('''
 # gen.batch_size = 8
 # pilot.generate_stage(gen, n_queries=200, G=16, T=1.0, out_dir=OUT)
 # pilot.score_stage(G=16, T=1.0, out_dir=OUT, length_fn=gen.count_tokens)
+''')
+
+md("""## 3b. Per-query latency
+Greedy `keywords` generation at batch size 1 (5 warm-up queries discarded, then 100 dev queries timed), BM25 search timed separately,
+plus an amortized batch-16 figure. Writes `results/day2/latency_bs1.csv` and `latency_summary.json`.""")
+code('''
+from eval.latency import measure_latency
+latency = measure_latency(gen, get_retriever("nfcorpus"), n=100, warmup=5, max_new_tokens=64, out_dir=OUT)
 ''')
 
 md("## 4. Package results (download from the Output tab, then give them back to Claude)")

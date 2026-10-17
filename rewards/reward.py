@@ -1,7 +1,12 @@
 """GRPO reward for BM25 query expansion.
 
-R(e) = nDCG@10(q + e) + w * R_cap@100(q + e) - lam * max(0, |e| - L)   if e is well formed
-R(e) = malformed                                                         otherwise (-0.1)
+R(e) = R_cap@100(q^xr + e) - lam * max(0, |e| - L)    if e is well formed (default mode "recall")
+R(e) = malformed                                       otherwise (-0.1)
+
+r is `query_repeats` (times q is written before e; the searched text is " ".join([q] * r + [e])) and |e| is the
+expansion length from `length_fn` (Qwen tokens in training). nDCG@10 is not part of the reward (the reranker
+ignores BM25's order); it is only logged. Modes "blend" (nDCG@10 + w * R_cap@100), "ndcg" and "replace" (e alone
+instead of the query) are kept for the Day 5 ablations.
 
 A completion is well formed iff it contains exactly one <query>...</query> block.
 """
@@ -13,24 +18,28 @@ import numpy as np
 
 from eval.metrics import ndcg_at_k, rcap_at_k
 
-MODES = ("blend", "recall", "ndcg", "replace")
+MODES = ("recall", "blend", "ndcg", "replace")
 _BLOCK = re.compile(r"<query>(.*?)</query>", re.DOTALL)
+_WORD = re.compile(r"[a-z0-9]+")
 
 
 @dataclass
 class RewardConfig:
     dataset: str = "nfcorpus"
     split: str = "train"
-    w: float = 0.25
-    lam: float = 0.0005
-    L: int = 32
-    mode: str = "blend"  # blend | recall (R_cap only) | ndcg (nDCG only) | replace (blend, but e replaces q)
+    w: float = 0.25  # R_cap weight in the "blend" and "replace" ablation modes only
+    lam: float = 0.001  # cost per token beyond L
+    L: int = 26  # free length, in tokens (1.5 x the median few-shot expansion length)
+    mode: str = "recall"  # recall (R_cap only, the reward) | blend (nDCG + w*R_cap) | ndcg (nDCG only) | replace (blend, e replaces q)
+    query_repeats: int = 1  # r: copies of q written before e
     malformed: float = -0.1
-    k: int = 100
+    k: int = 100  # retrieval depth
 
     def __post_init__(self):
         if self.mode not in MODES:
             raise ValueError(f"mode must be one of {MODES}, got {self.mode!r}")
+        if self.query_repeats < 1:
+            raise ValueError(f"query_repeats must be >= 1, got {self.query_repeats}")
 
 
 def parse_expansion(text: str) -> str | None:
@@ -39,6 +48,11 @@ def parse_expansion(text: str) -> str | None:
         return None
     m = _BLOCK.search(text)
     return m.group(1).strip() if m else None
+
+
+def repeats_query_word(query: str, expansion: str) -> bool:
+    """True if the expansion contains a word of the query (such repeats up-weight that word in BM25)."""
+    return bool(set(_WORD.findall(query.lower())) & set(_WORD.findall(expansion.lower())))
 
 
 def _completion_text(c) -> str:
@@ -71,7 +85,7 @@ def make_reward_fn(
         from data.load import load_split
         qdf, qrels = load_split(cfg.dataset, cfg.split)
         queries = dict(zip(qdf.qid, qdf["query"]))
-    raw_ndcg: dict[str, float] = {}  # raw-query nDCG@10 per qid, for the logged gain
+    raw: dict[str, tuple[float, float]] = {}  # raw-query (nDCG@10, R_cap) per qid, for the logged gains
 
     def reward(prompts, completions, qid, log_metric=log_metric, **kwargs) -> list[float]:
         texts = [_completion_text(c) for c in completions]
@@ -80,13 +94,13 @@ def make_reward_fn(
 
         def query_for(i: int) -> str:
             q, e = queries[qid[i]], exps[i]
-            return e if cfg.mode == "replace" else f"{q} {e}".strip()
+            return e if cfg.mode == "replace" else " ".join([q] * cfg.query_repeats + [e]).strip()
 
         # One batched search: every well-formed rewrite plus raw queries not yet cached.
-        new_raw = sorted({qid[i] for i in good if qid[i] not in raw_ndcg})
+        new_raw = sorted({qid[i] for i in good if qid[i] not in raw})
         ranked = retriever.search([query_for(i) for i in good] + [queries[q] for q in new_raw], k=cfg.k)
         for q, r in zip(new_raw, ranked[len(good):]):
-            raw_ndcg[q] = ndcg_at_k(r, qrels.get(q, {}), 10)
+            raw[q] = (ndcg_at_k(r, qrels.get(q, {}), 10), rcap_at_k(r, qrels.get(q, {}), cfg.k))
 
         rewards = [cfg.malformed] * len(texts)
         ndcgs, rcaps = [], []
@@ -109,7 +123,11 @@ def make_reward_fn(
                 log_metric("ndcg10", float(np.mean(ndcgs)))
                 log_metric("rcap100", float(np.mean(rcaps)))
                 log_metric("ndcg10_gain_over_raw",
-                           float(np.mean([n - raw_ndcg[qid[i]] for n, i in zip(ndcgs, good)])))
+                           float(np.mean([n - raw[qid[i]][0] for n, i in zip(ndcgs, good)])))
+                log_metric("rcap100_gain_over_raw",
+                           float(np.mean([c - raw[qid[i]][1] for c, i in zip(rcaps, good)])))
+                log_metric("query_word_repeat_share",
+                           float(np.mean([repeats_query_word(queries[qid[i]], exps[i]) for i in good])))
         return rewards
 
     return reward

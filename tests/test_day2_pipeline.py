@@ -23,9 +23,11 @@ class StubGen:
         return outs
 
 
-def test_stages_end_to_end(tmp_path):
+def test_stages_end_to_end(tmp_path, monkeypatch):
     from eval import decoding, pilot, zero_shot
+    monkeypatch.setattr(pilot, "FROZEN", tmp_path / "no_frozen.yaml")  # do not depend on the repo's frozen config
     from eval.freeze import freeze
+    from train.prompts import prompt_fingerprint
 
     gen, out = StubGen(), tmp_path
     zero_shot.generate_stage(gen, limit=12, out_dir=out)
@@ -47,7 +49,14 @@ def test_stages_end_to_end(tmp_path):
         assert 0.0 <= s[name]["nonzero_spread_share"] <= 1.0
     assert (out / "pilot_summary_T1.0_G4.json").exists()
 
-    cfg = freeze(out_dir=out, dest=out / "frozen.yaml")
+    fs = out / "fs_completions.json"  # few-shot outputs whose median expansion length is 17 tokens
+    fs.write_text(json.dumps([dict(qid=str(i), text="<query>x</query>", completion_tokens=20, exp_tokens=t)
+                              for i, t in enumerate([15, 17, 17, 19, 30])] +
+                             [dict(qid="m", text="oops", completion_tokens=40, exp_tokens=None)]))
+    cfg = freeze(out_dir=out, dest=out / "frozen.yaml", completions=fs)
     loaded = yaml.safe_load((out / "frozen.yaml").read_text())
-    assert loaded["prompt_style"] == zs["best_style"] and loaded["L"] == cfg["L"]
-    assert loaded["eval_decoding"]["policy"] == dec["policy"] and loaded["reward"]["w"] == 0.25
+    assert loaded["prompt_style"] == "keywords_fs" and loaded["L"] == cfg["L"] == 26  # ceil(1.5 x 17)
+    assert loaded["max_completion_tokens"] == 72  # ceil((3 x 17 + 15) / 8) x 8
+    assert loaded["eval_decoding"]["policy"] == dec["policy"]
+    assert loaded["reward"] == dict(mode="recall", lam=0.001, query_repeats=1, malformed=-0.1)
+    assert loaded["prompt_sha256"] == prompt_fingerprint("keywords_fs") != prompt_fingerprint("keywords")

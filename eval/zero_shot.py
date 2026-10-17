@@ -54,7 +54,8 @@ def score_stage(styles=STYLES, dataset="nfcorpus", split="dev", out_dir=OUT_DIR)
         df.to_csv(out_dir / f"zs_{style}_perquery.csv", index=False)
         rows.append(dict(system=style, **summarize(df)))
         raw = dict(system="raw_bm25", **summarize(df.assign(
-            ndcg10=df.raw_ndcg10, rcap100=df.raw_rcap100, gain_ndcg10=0.0, gain_rcap100=0.0, format_ok=True)))
+            ndcg10=df.raw_ndcg10, rcap100=df.raw_rcap100, recall100=df.raw_recall100, mrr10=df.raw_mrr10,
+            gain_ndcg10=0.0, gain_rcap100=0.0, format_ok=True)))
     table = pd.DataFrame([raw] + rows)
     table.to_csv(out_dir / "styles_dev.csv", index=False)
 
