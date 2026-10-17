@@ -1,0 +1,7 @@
+system,n,R_cap@100,BM25 nDCG@10,Reranked nDCG@10,BM25 MRR@10,Reranked MRR@10,format_error_rate
+Raw BM25,324.0,0.2333,0.2943,0.3163,0.4938,0.5272,0.0
+Frozen LLM + few-shot prompt,324.0,0.314,0.2817,0.3334,0.4674,0.5532,0.0031
+Difference (few-shot - raw),324.0,0.0808,-0.0126,0.0171,-0.0264,0.026,
+95% CI low,,0.0593,-0.0333,0.0075,-0.0637,0.0094,
+95% CI high,,0.1028,0.0079,0.0279,0.0121,0.0453,
+p-value (paired t-test),,0.0,0.233,0.001,0.1821,0.0043,

@@ -4,3 +4,4 @@ __pycache__/
 kaggle/*.zip
 .DS_Store
 results/*.zip
+outputs/
