@@ -1,0 +1,27 @@
+{
+  "policy": "greedy",
+  "temperature": 0.0,
+  "top_p": 1.0,
+  "top_k": 0,
+  "seeds": [
+    0
+  ],
+  "table": [
+    {
+      "policy": "greedy",
+      "ndcg10": 0.312,
+      "ndcg10_std": 0.0,
+      "rcap100": 0.2951,
+      "format_error_rate": 0.037,
+      "repetition_rate": 0.1314
+    },
+    {
+      "policy": "sampled",
+      "ndcg10": 0.3092,
+      "ndcg10_std": 0.0022,
+      "rcap100": 0.2988,
+      "format_error_rate": 0.0514,
+      "repetition_rate": 0.1161
+    }
+  ]
+}

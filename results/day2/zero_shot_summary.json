@@ -1,0 +1,7 @@
+{
+  "best_style": "keywords",
+  "L": 18,
+  "max_new_tokens": 64,
+  "dataset": "nfcorpus",
+  "split": "dev"
+}

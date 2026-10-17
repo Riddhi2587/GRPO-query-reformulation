@@ -1,0 +1,59 @@
+{
+  "T": 1.0,
+  "G": 8,
+  "n_queries": 200,
+  "L": 26,
+  "format_error_rate": 0.0024999999999999467,
+  "length_unit": "tokens",
+  "ndcg_only": {
+    "nonzero_spread_share": 0.82,
+    "nonzero_spread_share_wellformed": 0.815,
+    "reward_mean": 0.29826739461361584,
+    "reward_std": 0.30024469053284825,
+    "reward_quantiles": {
+      "0.05": 0.0,
+      "0.25": 0.0,
+      "0.5": 0.22009176629808017,
+      "0.75": 0.5278650833603743,
+      "0.95": 0.8899541168509599
+    },
+    "within_group_std_mean": 0.0764894698318789
+  },
+  "rcap100_only": {
+    "nonzero_spread_share": 0.8,
+    "nonzero_spread_share_wellformed": 0.8,
+    "reward_mean": 0.33989525318111974,
+    "reward_std": 0.284329869925095,
+    "reward_quantiles": {
+      "0.05": 0.0,
+      "0.25": 0.12,
+      "0.5": 0.27128427128427124,
+      "0.75": 0.5,
+      "0.95": 1.0
+    },
+    "within_group_std_mean": 0.05868099313023006
+  },
+  "full_reward": {
+    "nonzero_spread_share": 0.83,
+    "nonzero_spread_share_wellformed": 0.83,
+    "reward_mean": 0.33970712818111964,
+    "reward_std": 0.284305736240169,
+    "reward_quantiles": {
+      "0.05": 0.0,
+      "0.25": 0.12,
+      "0.5": 0.2695360195360195,
+      "0.75": 0.5,
+      "0.95": 1.0
+    },
+    "within_group_std_mean": 0.05879920904368935
+  },
+  "last_batch_metrics_full_reward": {
+    "format_error_rate": 0.0024999999999999467,
+    "ndcg10": 0.29945415500111866,
+    "rcap100": 0.3409977475499947,
+    "ndcg10_gain_over_raw": -0.005933619116574322,
+    "rcap100_gain_over_raw": 0.08088254824565945,
+    "query_word_repeat_share": 0.7825814536340853
+  },
+  "needs_remedy": false
+}
