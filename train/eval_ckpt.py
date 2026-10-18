@@ -7,6 +7,10 @@ untrained model goes through the same path (`--adapter none`), so the Day 3 gate
     python -m train.eval_ckpt --run q1.7b_rcap100_lr2e-5_G8_r1_s1 --adapter checkpoint-100
 
 Gate: dev R_cap@100 at least level with the untrained model's, and reranked nDCG@10 not dropped (within NDCG_TOLERANCE).
+
+`--split test` (and `--dataset scifact|fiqa`) scores the same way on other splits, for the Day 6 test evaluation; the gate
+is dev-only. Output files are `<prefix>_<adapter>.json` / `_perquery.csv`, with prefix `dev` for the default dataset's dev
+split and `[<dataset>_]<split>` otherwise (e.g. `test_none.json`, `scifact_test_final_lora.json`).
 """
 import argparse
 import json
@@ -31,7 +35,9 @@ def main(argv=None):
     ap.add_argument("--run", required=True, help="run name; checkpoints are in outputs/<run>/, logs in results/train/<run>/")
     ap.add_argument("--adapter", default="none", help="'none', a checkpoint folder name such as checkpoint-100, or 'final_lora'")
     ap.add_argument("--model", default="unsloth/Qwen3-1.7B")
-    ap.add_argument("--limit", type=int, help="only the first N dev queries (smoke test)")
+    ap.add_argument("--dataset", help="BEIR dataset (default: dataset in the frozen config)")
+    ap.add_argument("--split", default="dev", help="dev (default) or test")
+    ap.add_argument("--limit", type=int, help="only the first N queries (smoke test)")
     ap.add_argument("--frozen", default=str(FROZEN))
     ap.add_argument("--gpu-memory", type=float, default=0.4)
     ap.add_argument("--allow-local", action="store_true")
@@ -51,7 +57,9 @@ def main(argv=None):
     tok = AutoTokenizer.from_pretrained(a.model)
     apply_template = lambda msgs: tok.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True,  # noqa: E731
                                                           enable_thinking=False)
-    qdf, _ = load_split(frozen["dataset"], "dev")
+    dataset = a.dataset or frozen["dataset"]
+    prefix = a.split if dataset == frozen["dataset"] else f"{dataset}_{a.split}"
+    qdf, _ = load_split(dataset, a.split)
     qdf = qdf.head(a.limit) if a.limit else qdf
     prompts = [render_prompt(apply_template, q) for q in qdf["query"]]
 
@@ -64,18 +72,18 @@ def main(argv=None):
     del llm  # free GPU memory for the reranker
 
     count = lambda s: len(tok.encode(s, add_special_tokens=False))  # noqa: E731
-    df = evaluate_expansions(frozen["dataset"], "dev", make_records(list(qdf.qid), texts, count),
+    df = evaluate_expansions(dataset, a.split, make_records(list(qdf.qid), texts, count),
                              query_repeats=frozen["reward"]["query_repeats"], reranker=reranker)
-    summary = dict(summarize(df), adapter=a.adapter, run=a.run, limit=a.limit)
+    summary = dict(summarize(df), adapter=a.adapter, run=a.run, limit=a.limit, dataset=dataset, split=a.split)
     out = Path("results/train") / a.run
     out.mkdir(parents=True, exist_ok=True)
-    df.to_csv(out / f"dev_{a.adapter}_perquery.csv", index=False)
-    (out / f"dev_{a.adapter}.json").write_text(json.dumps(summary, indent=1))
+    df.to_csv(out / f"{prefix}_{a.adapter}_perquery.csv", index=False)
+    (out / f"{prefix}_{a.adapter}.json").write_text(json.dumps(summary, indent=1))
     print(json.dumps({k: summary[k] for k in ("n", "format_error_rate", "rcap100", "ndcg10", "rr_ndcg10",
                                               "raw_rcap100", "raw_rr_ndcg10")}, indent=1))
 
     base_path = out / "dev_none.json"
-    if a.adapter != "none" and base_path.exists():
+    if prefix == "dev" and a.adapter != "none" and base_path.exists():  # the gate is a dev-only check
         base = json.loads(base_path.read_text())
         if base.get("limit") == a.limit:
             g = gate(base, summary)
