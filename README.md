@@ -55,6 +55,12 @@ R = -0.1                                                               otherwise
 | Stack | Unsloth 2026.10.6, TRL 0.22.2, vLLM 0.15.1, transformers 4.57.6 |
 | Hardware | one NVIDIA A30 (24 GB); about 45 minutes for the full run, about 12 GB peak GPU memory |
 
+Training curves for the full run. Each step's value is the mean over its 64 samples, so the per-step line is
+noisy; the bold line is a 25-step average. The average reward rises modestly (0.345 over the first 108 steps,
+0.373 over the last 108) and completions stay short.
+
+![Training curves](diagrams/training_curve.png)
+
 ## Results
 
 R_cap@100 on the test sets, one training seed. "Few-shot" is the same model and prompt without training.
