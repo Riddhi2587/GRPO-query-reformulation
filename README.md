@@ -55,14 +55,6 @@ R = -0.1                                                               otherwise
 | Stack | Unsloth 2026.10.6, TRL 0.22.2, vLLM 0.15.1, transformers 4.57.6 |
 | Hardware | one NVIDIA A30 (24 GB); about 45 minutes for the full run, about 12 GB peak GPU memory |
 
-Training curves for the full run. Top: the gain in R_cap@100 over the raw query, measured on the same queries at each
-step. It averages +0.076 over the first 108 steps and +0.110 over the last 108. About +0.08 of the early level is
-the few-shot prompt before any training, so training adds roughly +0.03. Bottom: completion length, which stays
-short. Each step's value is the mean over its 64 samples, so the faint line is noisy; the bold line is a 25-step
-average.
-
-![Training curves](diagrams/training_curve.png)
-
 ## Results
 
 R_cap@100 on the test sets, one training seed. "Few-shot" is the same model and prompt without training.
