@@ -1,9 +1,11 @@
-"""Training curves for the README: reward and completion length per step, from the files a training run writes.
+"""Training curves for the README: gain in R_cap@100 over the raw query, and completion length, per step.
 
     python -m eval.plot_training --run q1.7b_rcap100_lr2e-5_G8_r1_s1_2ep
 
 Reads results/train/<run>/reward_metrics.jsonl and log_history.json; writes diagrams/training_curve.png.
-Each step's value is the mean over that step's 64 samples, so the raw line is noisy; the bold line is a trailing average.
+Each step uses different queries, so the raw reward mostly shows how hard that step's queries were. The gain over the
+raw query is measured on the same queries, which cancels that. Each step's value is the mean over its 64 samples, so the
+faint line is noisy; the bold line is a trailing average.
 """
 import argparse
 import json
@@ -25,14 +27,14 @@ def trailing_mean(x: np.ndarray, window: int) -> np.ndarray:
 
 
 def load_curves(run_dir: Path) -> dict[str, np.ndarray]:
-    """Per-step reward and mean completion length (tokens, including the <query> tags and end token)."""
+    """Per-step R_cap@100 gain over the raw query, and mean completion length (tokens, incl. the <query> tags)."""
     rows = [json.loads(line) for line in (run_dir / "reward_metrics.jsonl").read_text().splitlines() if line]
     logs = [d for d in json.loads((run_dir / "log_history.json").read_text()) if "loss" in d]
-    reward = np.array([r["reward_mean"] for r in rows])
+    gain = np.array([r["rcap100_gain_over_raw"] for r in rows])
     length = np.array([d["completions/mean_length"] for d in logs])
-    if len(reward) != len(length):
-        raise ValueError(f"{len(reward)} reward rows but {len(length)} trainer log rows in {run_dir}")
-    return dict(step=np.arange(1, len(reward) + 1), reward=reward, length=length)
+    if len(gain) != len(length):
+        raise ValueError(f"{len(gain)} reward rows but {len(length)} trainer log rows in {run_dir}")
+    return dict(step=np.arange(1, len(gain) + 1), gain=gain, length=length)
 
 
 def draw(curves: dict[str, np.ndarray], out: Path, window: int = 25, epoch_step: int | None = None) -> None:
@@ -42,7 +44,7 @@ def draw(curves: dict[str, np.ndarray], out: Path, window: int = 25, epoch_step:
     import matplotlib.pyplot as plt
 
     fig, axes = plt.subplots(2, 1, figsize=(8, 5.6), sharex=True, facecolor=SURFACE)
-    panels = [("reward", "Training reward: R_cap@100 minus length cost", BLUE, "{:.2f}"),
+    panels = [("gain", "Gain in R_cap@100 over the raw query (same queries each step)", BLUE, "{:+.2f}"),
               ("length", "Completion length (tokens, includes the <query> tags)", ORANGE, "{:.1f}")]
     for ax, (key, title, color, fmt) in zip(axes, panels):
         y, smooth = curves[key], trailing_mean(curves[key], window)
@@ -55,6 +57,9 @@ def draw(curves: dict[str, np.ndarray], out: Path, window: int = 25, epoch_step:
                     va="center", color=INK, fontsize=10)
         if epoch_step:
             ax.axvline(epoch_step, color=INK_2, linewidth=1, alpha=0.5)
+        if key == "gain":  # the raw query is the baseline: zero gain
+            ax.axhline(0, color=INK_2, linewidth=1, alpha=0.7)
+            ax.annotate("raw query", (x[0], 0), xytext=(4, 4), textcoords="offset points", color=INK_2, fontsize=9)
         ax.set_title(title, loc="left", color=INK, fontsize=11, pad=8)
         ax.grid(axis="y", color=GRID, linewidth=1)
         ax.set_axisbelow(True)
