@@ -110,3 +110,25 @@ def test_training_reward_does_not_import_the_reranker():
                 for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))
                 for a in (n.names if isinstance(n, ast.Import) else [n])}
     assert not {m for m in imported if m and ("rerank" in m or "sentence_transformers" in m)}
+
+
+def test_load_doc_text_handles_docs_without_a_title(monkeypatch):
+    from collections import namedtuple
+
+    from retrieval.rerank import load_doc_text
+
+    WithTitle = namedtuple("WithTitle", "doc_id title text")
+    NoTitle = namedtuple("NoTitle", "doc_id text")  # FiQA documents look like this
+    corpora = {"beir/fake_titled": [WithTitle("a", "T", "body")], "beir/fake_untitled": [NoTitle("b", "body only")]}
+
+    class FakeDataset:
+        def __init__(self, docs):
+            self.docs = docs
+
+        def docs_iter(self):
+            return iter(self.docs)
+
+    import ir_datasets
+    monkeypatch.setattr(ir_datasets, "load", lambda name: FakeDataset(corpora[name]))
+    assert load_doc_text("fake_titled") == {"a": "T body"}
+    assert load_doc_text("fake_untitled") == {"b": "body only"}

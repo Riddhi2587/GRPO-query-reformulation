@@ -14,9 +14,12 @@ def require_gpu(allow_local: bool = False) -> None:
 
 @lru_cache(maxsize=None)
 def load_doc_text(dataset: str) -> dict[str, str]:
-    """{docno: "title text"} from the cached BEIR corpus (ir_datasets; no network once downloaded)."""
+    """{docno: "title text"} from the cached BEIR corpus (ir_datasets; no network once downloaded).
+
+    FiQA documents have no title field, so they are just their text.
+    """
     import ir_datasets
-    return {d.doc_id: f"{d.title} {d.text}".strip() for d in ir_datasets.load(f"beir/{dataset}").docs_iter()}
+    return {d.doc_id: f"{getattr(d, 'title', '')} {d.text}".strip() for d in ir_datasets.load(f"beir/{dataset}").docs_iter()}
 
 
 class CrossEncoderReranker:
