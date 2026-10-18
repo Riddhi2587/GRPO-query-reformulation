@@ -76,3 +76,14 @@ def test_train_modules_import_without_gpu_packages():
     code = ("import sys, train.grpo, train.eval_ckpt; "
             "bad = [m for m in ('unsloth', 'trl', 'vllm', 'torch') if m in sys.modules]; assert not bad, bad")
     subprocess.run([sys.executable, "-c", code], check=True)
+
+
+def test_setup_script_pins_unsloth_and_refuses_global_installs():
+    import re
+    from pathlib import Path
+    reqs = Path("requirements-train.txt").read_text()
+    assert re.search(r"^unsloth==\d", reqs, re.M) and re.search(r"^vllm==\d", reqs, re.M)
+    script = Path("train/setup_jarvis.sh").read_text()
+    assert "VIRTUAL_ENV" in script and "UV_SYSTEM_PYTHON" not in script
+    assert 'unsloth==$UNSLOTH_VERSION' in script  # explicit pin, installed without the constraints file
+    subprocess.run(["bash", "-n", "train/setup_jarvis.sh"], check=True)  # syntax check only

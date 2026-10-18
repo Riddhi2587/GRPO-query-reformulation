@@ -1,7 +1,8 @@
 # Constraints for the GPU training box (JarvisLabs A100). Used as `pip install -c requirements-train.txt ...` by train/setup_jarvis.sh.
 # Pins come from the Kaggle practice run (results/grpo-practice-kaggle.ipynb) that trained end to end, except vLLM:
-# the practice run used vllm==0.11.2 on a T4; its install cell picks 0.15.1 for other GPUs. If 0.15.1 breaks with TRL 0.22.2,
-# switch to 0.11.2 (the tested one). After a green smoke test, save `pip freeze` as requirements-train.lock.txt.
+# the practice run used vllm==0.11.2 on a T4; its install cell picks 0.15.1 for other GPUs. torch is chosen by vLLM (2.9.1+cu128 on the A30 box). If 0.15.1 breaks with TRL 0.22.2,
+# switch to 0.11.2 (the tested one). The setup script writes the exact installed versions to requirements-train.lock.txt.
+unsloth==2026.10.6
 transformers==4.57.6
 trl==0.22.2
 trackio==0.20.2

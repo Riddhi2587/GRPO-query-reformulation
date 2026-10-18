@@ -5,3 +5,4 @@ kaggle/*.zip
 .DS_Store
 results/*.zip
 outputs/
+.venv-train/
